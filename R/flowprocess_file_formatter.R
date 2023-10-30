@@ -1,8 +1,10 @@
-#' Batch Flowprocess
-#'
-#'
+####
+# File processing to create importable files for ecotaxa ####
+####
 
+# Requires utilities for some features
 
+# |- Exported Files --------------------
 
 #' Establish Folder structure for FlowProcess
 #'
@@ -26,7 +28,8 @@ establish_flowprocess <- function(root_dir,
 
   etx_tsv <- construct_etx_tsv(root_dir, raw_data_file,
                                raw_summary_file, image_file_type)
-  project_name <- unique(etx_tsv$sample_project)
+
+  project_name <- unique(etx_tsv$sample_project)[-1] #drop index for [t]
 
   # check for existing file name
   tsv_name <- paste0(root_dir, '/', 'ecotaxa_', project_name, '.tsv')
@@ -39,7 +42,8 @@ establish_flowprocess <- function(root_dir,
     etx_tsv,
     file = tsv_name,
     row.names = FALSE,
-    sep = '\t'
+    sep = '\t',
+    quote = FALSE
   )
 
   if(clean_files) {
@@ -50,7 +54,9 @@ establish_flowprocess <- function(root_dir,
 }
 
 
-#' Automatically detect a meta_data in your root_dir
+# |- Non-exported files ----------------
+
+#' Automatically detect the needed meta data in your root_dir
 #'
 #' @param root_dir The Root directory
 find_meta_files <- function(root_dir) {
@@ -86,17 +92,67 @@ find_meta_files <- function(root_dir) {
 construct_etx_tsv <- function(root_dir,
                               raw_data_file,
                               raw_summary_file,
-                              image_file_type = '.png') {
+                              image_file_type = '.png',
+                              include_cytometry) {
 
   img_file_names <- dir(root_dir)[grepl(paste0('\\',image_file_type,'$'),
                                                dir(root_dir))]
 
+  # core reconstruction of tsv file
   new_data_frame <- data.frame(
     sample_project = raw_data_file$Name,
     sample_id = raw_data_file$Name,
     object_id = gsub("\\..*$", "", img_file_names),
+    object_esd = raw_data_file$Diameter..ESD.,
+    object_abd = raw_data_file$Diameter..ABD.,
+    object_feret = raw_data_file$Diameter..FD.,
+    object_blue = raw_data_file$Average.Blue,
+    object_green = raw_data_file$Average.Green,
+    object_red = raw_data_file$Average.Red,
+    object_x = raw_data_file$Capture.X,
+    object_y = raw_data_file$Capture.Y,
+    object_circle_fit = raw_data_file$Circle.Fit,
+    object_circularity = raw_data_file$Circularity,
+    object_circularity_hu = raw_data_file$Circularity..Hu.,
+    object_compactness = raw_data_file$Compactness,
+    object_convex_perim = raw_data_file$Convex.Perimeter,
+    object_convexivity = raw_data_file$Convexity,
+    object_edge_gradient = raw_data_file$Edge.Gradient,
+    object_elongation = raw_data_file$Elongation,
+    object_feret_max = raw_data_file$Feret.Angle.Max,
+    object_feret_min = raw_data_file$Feret.Angle.Min,
+    object_fiber_curl = raw_data_file$Fiber.Curl,
+    object_fiber_straight = raw_data_file$Fiber.Straightness,
+    object_geodisc_length = raw_data_file$Geodesic.Length,
+    object_geodisc_thickness = raw_data_file$Geodesic.Thickness,
+    object_perim. = raw_data_file$Perimeter,
+    object_length = raw_data_file$Length,
+    object_roughness = raw_data_file$Roughness,
+    object_symmetry = raw_data_file$Symmetry,
+    object_width = raw_data_file$Width,
+    object_Intensity = raw_data_file$Intensity,
+    acq_id = raw_data_file$Name,
+    acq_instrument = paste0('FlowCam SN:', raw_summary_file$SerialNo),
+    acq_software = raw_summary_file$Software,
+    acq_calibration_img = raw_data_file$Calibration.Image,
+    acq_source_img = raw_data_file$Source.Image,
+    acq_flowrate = raw_summary_file$`Flow Rate`,
+    acq_mode = raw_summary_file$Mode,
+    acq_vol_processed = raw_summary_file$`Sample Volume Processed`,
+    acq_vol_img = raw_summary_file$`Fluid Volume Imaged`,
+    process_id = raw_data_file$Name,
+    process_pixel = raw_data_file$Calibration.Factor,
+    process_date = raw_data_file$Date,
+    process_uuid = raw_data_file$UUID,
     img_file_name = img_file_names
   )
+
+  # head names
+  header_names <- names(new_data_frame)
+  col_types <- sapply(new_data_frame, assign_tsv_type)
+
+  new_data_frame <- rbind(col_types, new_data_frame)
+
 
   return(new_data_frame)
 }
