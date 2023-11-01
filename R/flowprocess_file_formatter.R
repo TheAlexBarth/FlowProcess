@@ -8,7 +8,7 @@
 
 #' Establish Folder structure for FlowProcess
 #'
-#'
+#' @importFrom utils write.table
 #'
 #' @param root_dir The root directory
 #' @param meta_data the metadata file
@@ -92,8 +92,7 @@ find_meta_files <- function(root_dir) {
 construct_etx_tsv <- function(root_dir,
                               raw_data_file,
                               raw_summary_file,
-                              image_file_type = '.png',
-                              include_cytometry) {
+                              image_file_type = '.png') {
 
   img_file_names <- dir(root_dir)[grepl(paste0('\\',image_file_type,'$'),
                                                dir(root_dir))]
@@ -162,8 +161,8 @@ construct_etx_tsv <- function(root_dir,
 #'
 #' This is an internal function to read in
 #'
-#' @param root_dir
-#' @param data_file_name
+#' @param root_dir the root directory
+#' @param data_file_name the data file name
 read_data_file <- function(root_dir, data_file_name) {
 
   data_file_location <- paste0(root_dir, '/', data_file_name)

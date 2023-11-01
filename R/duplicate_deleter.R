@@ -9,20 +9,99 @@
 #' This function calls two_step_flag to get index of points
 #' to delete but the main actions here are to
 #'
-#' @param root_dir the root director of your project
-#' @param grid_size the grid size for space threshold
-#' @param
+#' @importFrom utils menu read.table
+#' @importFrom grDevices dev.off png
 #'
-
+#' @param root_dir the root director of your project
+#' @param write_plots function to write plots
+#' @param ... arguments to pass on to flag_duplicates
+#'
+#' @author Alex Barth
+#' @export
 duplicate_deleter <- function(root_dir,
-                              ) {
+                              write_plots = TRUE,
+                              ...) {
 
+  # load in and setup the data
   metadata <- find_read_tsv(root_dir)
+  project_name <- unique(metadata$sample_project)
 
-  flagged_points <- density_space_thresholder(metadata,
-                                              )
+  # check if projects are unique
+  if(length(project_name) > 1) {
+    stop('There are multiple projects in this one tsv - should not do that.')
+  }
+
+  # create a safety-stop to see if this process was already ran
+  if(!is.null(metadata[['process_duprem_date']])) {
+    go_ahead <- menu(
+      c("Run it again",
+        "Whoops - exit"),
+      title = paste0('This Process was ran for: ',
+                     project_name, ' on: ',
+                     unique(metadata[['process_duprem_date']]))
+    )
+    if(go_ahead == 2) {
+      stop('USER EXITED PROCESS')
+    }
+  }
 
 
+  flagged_points <- tryCatch(
+    expr = {
+      flag_duplicates(metadata)
+    },
+    error = function(e) {
+      warning("No flagged duplicates: ", e$message)
+      return("exit")
+    }
+  )
+
+  if(flagged_points[1] == 'exit') {
+    return('Process Abandoned')
+  }
+
+  #write a plot to the results folder
+  # This assumes you set up a file structure to emulate
+  if(write_plots) {
+
+    #check if results directory exists
+    if(!dir.exists(paste0(root_dir, '/../../_results'))) {
+      dir.create(paste0(root_dir, '/../../_results'))
+    }
+
+    plot_file_name <- paste0(root_dir,'/../../_results/',
+                             project_name, '_duplicates.png')
+
+    png(plot_file_name, width = 480, height = 960)
+    plot_obs(metadata, flagged_points)
+    dev.off()
+  }
+
+  # Delete and remove images
+  remove_file_names <- metadata$img_file_name[flagged_points]
+  file.remove(paste0(root_dir, '/', remove_file_names))
+
+  # Remove from metadata
+  new_metadata <- metadata[-flagged_points,]
+
+  #assign new column to fingerprint process
+  new_metadata$process_duprem_date <- as.character(Sys.Date())
+
+  header_names <- names(new_metadata)
+  col_types <- sapply(new_metadata, assign_tsv_type)
+
+  new_metadata <- rbind(col_types, new_metadata)
+
+  tsv_name <- paste0(root_dir, '/', 'ecotaxa_', project_name, '.tsv')
+
+  # create
+  write.table(
+    new_metadata,
+    file = tsv_name,
+    row.names = FALSE,
+    sep = '\t',
+    quote = FALSE
+  )
 }
 
 # |- Main Flagging system -----------
@@ -34,9 +113,12 @@ duplicate_deleter <- function(root_dir,
 #'
 #' @param metadata the metadata frame
 #' @param grid_size the resolution of grid-points to use
-#' @param threhold_multiplier number of sd away from mean density
+#' @param threshold_multiplier number of sd away from mean density
 #' @param minPts The minimum number of points
 #' @param features  the features to cluster on
+#'
+#' @author Alex Barth
+#' @export
 flag_duplicates <- function(metadata,
                             grid_size = 100,
                             threshold_multiplier = 2,
@@ -92,21 +174,15 @@ flag_duplicates <- function(metadata,
 
 #' Plot the distribution of observations
 #'
-#' @import ggplot2
-#' @importFrom graphics device.
+#' @importFrom graphics legend
 #'
 #' @param metadata the tsv file
+#' @param dup_index duplicated points
 #'
 #' @author Alex Barth
 #' @export
 plot_obs <- function(metadata,
                      dup_index = NULL) {
-  if (.Platform$OS.type == "windows") {
-    windows()
-  } else {
-    x11()
-  }
-
   # Determine point colors
   point_colors <- rep("black", nrow(metadata))
   if (!is.null(dup_index)) {
@@ -114,12 +190,12 @@ plot_obs <- function(metadata,
   }
 
   plot(metadata$object_x, metadata$object_y, col=point_colors, pch=20, cex = 0.5,
-       xlab="X Coordinate", ylab="Y Coordinate", main="Subgrid Plot",
+       xlab="X Coordinate", ylab="Y Coordinate", main="",
        frame.plot=FALSE, xaxs="i", yaxs="i")
 
   # If duplicate points exist, add a legend
   if (!is.null(dup_index)) {
-    legend("topright", legend=c("Duplicate", "Non-duplicate"), fill=c("red", "black"))
+    legend("top", legend=c("Duplicate", "Non-duplicate"), fill=c("red", "black"))
   }
 
 }
@@ -180,11 +256,12 @@ feature_cluster <- function(data,
 #'
 #' This is the first step to identify spatial overlap
 #'
-#' @importFrom MASS kde2d, bandwidth.nrd
+#' @importFrom MASS kde2d bandwidth.nrd
+#' @importFrom stats sd
 #'
 #' @param metadata a metadata file from a tsv function
 #' @param grid_size the resolution of grid-points to use
-#' @param threhold_multiplier number of sd away from mean density
+#' @param threshold_multiplier number of sd away from mean density
 density_space_thresholder <- function(metadata,
                                       grid_size = 100,
                                       threshold_multiplier = 2) {
@@ -206,7 +283,7 @@ density_space_thresholder <- function(metadata,
   # get vals for each point in metadata
   density_vals <- kde_output$z[nearest_index]
 
-  threshold <- mean(kde_output$z) + 2*sd(kde_output$z)
+  threshold <- mean(kde_output$z) + threshold_multiplier*sd(kde_output$z)
   high_density <- which(density_vals > threshold)
 
   return(high_density)
@@ -219,7 +296,7 @@ density_space_thresholder <- function(metadata,
 #' This is a little tricky- it expand.grid the grid list and provides index there
 #'
 #' @param point the point to map
-#' @param grid the grid to map to
+#' @param grid_list the grid to map to
 nearest_gridpoint <- function(point, grid_list) {
 
   # Create a matrix of all grid combinations
