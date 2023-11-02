@@ -22,11 +22,11 @@ flag_duplicates(
 
 \item{grid_size}{the resolution of grid-points to use}
 
+\item{threshold_multiplier}{number of sd away from mean density}
+
 \item{minPts}{The minimum number of points}
 
 \item{features}{the features to cluster on}
-
-\item{threhold_multiplier}{number of sd away from mean density}
 }
 \description{
 This will feed the meta through first the space detector

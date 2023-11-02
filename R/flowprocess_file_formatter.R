@@ -163,6 +163,8 @@ construct_etx_tsv <- function(root_dir,
 #'
 #' @param root_dir the root directory
 #' @param data_file_name the data file name
+#'
+#' @importFrom utils read.csv
 read_data_file <- function(root_dir, data_file_name) {
 
   data_file_location <- paste0(root_dir, '/', data_file_name)
@@ -183,6 +185,8 @@ read_data_file <- function(root_dir, data_file_name) {
 #'
 #' @param root_dir The root file directory
 #' @param summary_file_name The summary file name
+#'
+#' @importFrom utils read.csv
 read_summary_file <- function(root_dir,
                             summary_file_name) {
 
