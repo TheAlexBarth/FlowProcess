@@ -93,3 +93,42 @@ batch_dup_deleter <- function(root_dir,
   close(pb)
   cat('Finished Dupdeleter')
 }
+
+#' Batch Trim
+#'
+#' @param root_dir Root directory preferably the project level (above _work)
+#' @param min_esd the minimum esd
+#'
+#' @export
+batch_trim <- function(root_dir, min_esd) {
+
+  # check for work folder
+  if('_work' %in% dir(root_dir)) {
+    root_dir <- paste0(root_dir, '/_work')
+  }
+
+  # get list of subdirectory
+  sub_dirs <- dir(root_dir, full.names = T)
+
+  # create text progress bar
+  pb <- txtProgressBar(min = 0, max = length(sub_dirs), style = 3)
+
+  # loop through and make the process
+  for(i in 1:length(sub_dirs)) {
+
+    tryCatch(
+      expr = {
+        trim_to_esd(sub_dirs[i], min_esd)
+      },
+      error = function(e) {
+        warning(paste0('Not processed for ', sub_dirs[i], ' for reason: '),
+                e$message)
+      }
+    )
+    setTxtProgressBar(pb, i)
+  }
+
+  # Close the process
+  close(pb)
+  print('Finished Trimming')
+}

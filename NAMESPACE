@@ -2,11 +2,13 @@
 
 export(batch_dup_deleter)
 export(batch_flowprocess)
+export(batch_trim)
 export(duplicate_deleter)
 export(establish_flowprocess)
 export(flag_duplicates)
 export(plot_obs)
 export(read_etx_tsv)
+export(trim_to_esd)
 importFrom(MASS,bandwidth.nrd)
 importFrom(MASS,kde2d)
 importFrom(dbscan,hdbscan)

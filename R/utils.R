@@ -4,6 +4,25 @@
 
 # |- File Reading Utils ------------
 
+
+#' Find and read etx tsv
+#'
+#' Works in a flowprocess-formatted folder
+#'
+#' @param root_dir root directory
+find_read_tsv <- function(root_dir) {
+
+  path <- grep('.tsv', dir(root_dir, full.names = T), value = T)
+
+  if(length(path) > 1) {
+    stop('There are multiple tsv files in your root directory!')
+  }
+
+  return(read_etx_tsv(path))
+
+}
+
+
 #' A short-cut way to read etx files
 #'
 #' Feeds to read.table
